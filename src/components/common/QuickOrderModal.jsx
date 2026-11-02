@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export default function QuickOrderModal() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshProfile, updateUserAddresses } = useAuth();
   const {
     quickOrderProduct,
     setQuickOrderProduct,
@@ -126,6 +126,11 @@ export default function QuickOrderModal() {
 
       const res = await api.post('/orders', orderPayload);
       if (res.data?.success) {
+        if (res.data.savedAddresses) {
+          updateUserAddresses(res.data.savedAddresses);
+        } else {
+          refreshProfile();
+        }
         setSuccessOrder(res.data.order);
         try {
           confetti({
@@ -356,6 +361,18 @@ export default function QuickOrderModal() {
                     Delivery Address
                   </span>
                   <span className="text-[11px] text-slate-500">Ordering as: {user.name}</span>
+                </div>
+
+                {user.addresses && user.addresses.length > 0 && (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-[11px] text-emerald-800 font-medium">
+                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                    <span>Saved delivery address loaded. You can edit any field below.</span>
+                  </div>
+                )}
+
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-[11px] text-slate-600">
+                  <span>Confirmation will be sent to:</span>
+                  <span className="font-bold text-slate-900">{user.email}</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5">

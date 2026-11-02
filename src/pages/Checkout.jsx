@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export default function Checkout() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshProfile, updateUserAddresses } = useAuth();
   const {
     cart,
     clearCart,
@@ -42,6 +42,7 @@ export default function Checkout() {
   const [pinCode, setPinCode] = useState('');
   const [instructions, setInstructions] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('COD');
+  const [hasSavedAddress, setHasSavedAddress] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -59,6 +60,7 @@ export default function Checkout() {
         setCity(def.city || '');
         setState(def.state || '');
         setPinCode(def.pinCode || '');
+        setHasSavedAddress(true);
       }
     }
   }, [user]);
@@ -157,6 +159,11 @@ export default function Checkout() {
 
       const res = await api.post('/orders', orderPayload);
       if (res.data?.success && res.data.order) {
+        if (res.data.savedAddresses) {
+          updateUserAddresses(res.data.savedAddresses);
+        } else {
+          refreshProfile();
+        }
         clearCart();
         try {
           confetti({
@@ -198,10 +205,26 @@ export default function Checkout() {
           
           {/* Customer & Address Details */}
           <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-slate-200 shadow-sm space-y-5">
-            <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-              <MapPin size={18} className="text-orange-500" />
-              <span>Delivery Information</span>
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <MapPin size={18} className="text-orange-500" />
+                <span>Delivery Information</span>
+              </h3>
+              {hasSavedAddress && (
+                <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <CheckCircle2 size={12} /> Saved Address Loaded
+                </span>
+              )}
+            </div>
+
+            {hasSavedAddress && (
+              <div className="p-3.5 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 border border-emerald-200/90 rounded-2xl flex items-start gap-2.5 text-xs text-emerald-900">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <p>
+                  <strong>Pre-filled from your previous order.</strong> You can freely edit any field below. Changes will automatically be saved for your next order.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -233,17 +256,22 @@ export default function Checkout() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Email Address (for Order Updates & Invoices) *
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>Email Address (Order Confirmation will be sent here) *</span>
+                  <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Registered Account Email
+                  </span>
                 </label>
                 <input
                   type="email"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. yourname@gmail.com"
-                  className="w-full px-4 py-2.5 text-xs rounded-xl border border-slate-200 outline-none focus:border-orange-500"
+                  disabled
+                  value={user?.email || email}
+                  className="w-full px-4 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-100 text-slate-600 cursor-not-allowed outline-none font-medium"
                 />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Order confirmation receipt, tax invoice, and tracking updates will be delivered to your registered email.
+                </p>
               </div>
 
               <div className="sm:col-span-2">

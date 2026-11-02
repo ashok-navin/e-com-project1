@@ -2,6 +2,7 @@ import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Coupon from '../models/Coupon.js';
 import WebsiteSettings from '../models/WebsiteSettings.js';
+import User from '../models/User.js';
 import {
   sendOrderConfirmationEmail,
   sendAdminNewOrderEmail,
@@ -148,12 +149,16 @@ export const createOrder = async (req, res) => {
     const orderId = generateOrderId();
     const initialStatus = 'CONFIRMED'; // For COD or initial placement
 
+    // Ensure logged-in user's registered email is ALWAYS used for order records and notifications
+    const registeredEmail = req.user?.email ? req.user.email.toLowerCase().trim() : '';
+    const finalCustomerEmail = registeredEmail || customer.email.toLowerCase().trim();
+
     const newOrder = await Order.create({
       orderId,
       user: req.user ? req.user._id : null,
       customer: {
         name: customer.name.trim(),
-        email: customer.email.toLowerCase().trim(),
+        email: finalCustomerEmail,
         phone: customer.phone.trim(),
       },
       shippingAddress: {
@@ -187,8 +192,60 @@ export const createOrder = async (req, res) => {
       },
     });
 
-    // Send notifications asynchronously
-    sendOrderConfirmationEmail(newOrder).catch((err) =>
+    // Save or update address in user's profile for future orders
+    let updatedAddresses = [];
+    if (req.user) {
+      try {
+        const userToUpdate = await User.findById(req.user._id);
+        if (userToUpdate) {
+          const addressToSave = {
+            fullName: customer.name.trim(),
+            phone: customer.phone.trim(),
+            street: shippingAddress.street.trim(),
+            city: shippingAddress.city.trim(),
+            state: shippingAddress.state.trim(),
+            pinCode: shippingAddress.pinCode.trim(),
+            isDefault: true,
+          };
+
+          if (!userToUpdate.phone && customer.phone) {
+            userToUpdate.phone = customer.phone.trim();
+          }
+
+          if (!userToUpdate.addresses) {
+            userToUpdate.addresses = [];
+          }
+
+          userToUpdate.addresses.forEach((a) => {
+            a.isDefault = false;
+          });
+
+          const existingIndex = userToUpdate.addresses.findIndex(
+            (a) =>
+              a.street?.toLowerCase().trim() === addressToSave.street.toLowerCase().trim() &&
+              a.pinCode?.trim() === addressToSave.pinCode.trim()
+          );
+
+          if (existingIndex !== -1) {
+            userToUpdate.addresses[existingIndex].fullName = addressToSave.fullName;
+            userToUpdate.addresses[existingIndex].phone = addressToSave.phone;
+            userToUpdate.addresses[existingIndex].city = addressToSave.city;
+            userToUpdate.addresses[existingIndex].state = addressToSave.state;
+            userToUpdate.addresses[existingIndex].isDefault = true;
+          } else {
+            userToUpdate.addresses.unshift(addressToSave);
+          }
+
+          await userToUpdate.save();
+          updatedAddresses = userToUpdate.addresses;
+        }
+      } catch (addrErr) {
+        console.error('Failed to auto-save address to user profile:', addrErr);
+      }
+    }
+
+    // Send notifications asynchronously: confirmation email ALWAYS to logged-in user's registered email
+    sendOrderConfirmationEmail(newOrder, finalCustomerEmail).catch((err) =>
       console.error('Customer confirmation email failed:', err)
     );
     sendAdminNewOrderEmail(newOrder).catch((err) =>
@@ -199,6 +256,7 @@ export const createOrder = async (req, res) => {
       success: true,
       message: 'Order placed successfully!',
       order: newOrder,
+      savedAddresses: updatedAddresses,
     });
   } catch (error) {
     console.error('createOrder error:', error);

@@ -108,6 +108,31 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('td_admin');
   };
 
+  // Refresh full user profile from backend
+  const refreshProfile = async () => {
+    try {
+      const res = await api.get('/auth/profile');
+      if (res.data?.success && res.data.user) {
+        setUser(res.data.user);
+        localStorage.setItem('td_user', JSON.stringify(res.data.user));
+        return res.data.user;
+      }
+    } catch (err) {
+      console.warn('Failed to refresh profile:', err);
+    }
+    return null;
+  };
+
+  // Directly update addresses in local user state
+  const updateUserAddresses = (addresses) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, addresses };
+      localStorage.setItem('td_user', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   // Update Profile
   const updateProfile = async (profileData) => {
     const res = await api.put('/auth/profile', profileData);
@@ -151,6 +176,8 @@ export const AuthProvider = ({ children }) => {
         adminLogin,
         logout,
         updateProfile,
+        refreshProfile,
+        updateUserAddresses,
         requestPasswordOTP,
         verifyOTP,
         resetPassword,

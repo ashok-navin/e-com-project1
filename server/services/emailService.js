@@ -102,7 +102,10 @@ export const sendPasswordResetEmail = async (email, otp) => {
 };
 
 // 2. Order Confirmation Email to Customer
-export const sendOrderConfirmationEmail = async (order) => {
+export const sendOrderConfirmationEmail = async (order, customEmail = null) => {
+  const recipientEmail = (customEmail || order.customer?.email || '').toLowerCase().trim();
+  if (!recipientEmail) return;
+
   const transporter = getTransporter();
   const subject = `Your Order Has Been Confirmed! - #${order.orderId}`;
 
@@ -175,13 +178,13 @@ export const sendOrderConfirmationEmail = async (order) => {
   );
 
   if (!transporter) {
-    console.log(`[EMAIL SIMULATION] Order Confirmation Email sent to ${order.customer.email} for #${order.orderId}`);
+    console.log(`[EMAIL SIMULATION] Order Confirmation Email sent to ${recipientEmail} for #${order.orderId}`);
     return { simulated: true };
   }
 
   return await transporter.sendMail({
     from: `"${BRAND_NAME}" <${BRAND_EMAIL}>`,
-    to: order.customer.email,
+    to: recipientEmail,
     subject,
     html,
   });
@@ -189,7 +192,7 @@ export const sendOrderConfirmationEmail = async (order) => {
 
 // 3. New Order Notification to Admin
 export const sendAdminNewOrderEmail = async (order) => {
-  const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@trendingdart.com';
   if (!adminEmail) return;
 
   const transporter = getTransporter();
