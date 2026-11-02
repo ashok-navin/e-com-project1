@@ -41,28 +41,41 @@ app.use(async (req, res, next) => {
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+const healthHandler = (req, res) => {
   res.status(200).json({
     status: 'ok',
     app: 'Trending Dart E-Commerce API',
+    database: process.env.MONGODB_URI ? 'configured' : 'missing_env',
     timestamp: new Date().toISOString(),
   });
-});
+};
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/coupons', couponRoutes);
-app.use('/api/offers', offerRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/upload', uploadRoutes);
+app.get('/api/health', healthHandler);
+app.get('/health', healthHandler);
 
-// Statically serve uploaded files
-app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+// Create unified API router mounted at both /api and /
+const apiRouter = express.Router();
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/products', productRoutes);
+apiRouter.use('/categories', categoryRoutes);
+apiRouter.use('/orders', orderRoutes);
+apiRouter.use('/coupons', couponRoutes);
+apiRouter.use('/offers', offerRoutes);
+apiRouter.use('/reviews', reviewRoutes);
+apiRouter.use('/settings', settingsRoutes);
+apiRouter.use('/admin', adminRoutes);
+apiRouter.use('/upload', uploadRoutes);
+
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
+
+// Statically serve uploaded files (in local environments)
+try {
+  const localUploadsPath = path.join(process.cwd(), 'public', 'uploads');
+  app.use('/uploads', express.static(localUploadsPath));
+} catch (e) {
+  console.warn('Uploads static directory bypassed in serverless mode');
+}
 
 // Fallback error handler
 app.use((err, req, res, next) => {

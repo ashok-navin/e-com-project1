@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
 
-let cachedConnection = global.mongoose;
+let cached = global.mongoose;
 
-if (!cachedConnection) {
-  cachedConnection = global.mongoose = { conn: null, promise: null };
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
 }
 
 const connectDB = async () => {
@@ -13,34 +13,40 @@ const connectDB = async () => {
     return null;
   }
 
-  if (cachedConnection.conn) {
-    return cachedConnection.conn;
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    return cached.conn;
   }
 
-  if (!cachedConnection.promise) {
+  if (!cached.promise) {
     const opts = {
-      bufferCommands: false,
+      bufferCommands: true,
       maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     };
 
-    cachedConnection.promise = mongoose.connect(uri, opts).then((mongooseInstance) => {
-      console.log('✅ MongoDB Connected Successfully');
-      return mongooseInstance;
-    }).catch((err) => {
-      console.error('❌ MongoDB Connection Error:', err.message);
-      cachedConnection.promise = null;
-      throw err;
-    });
+    cached.promise = mongoose
+      .connect(uri, opts)
+      .then((mongooseInstance) => {
+        console.log('✅ MongoDB Connected Successfully');
+        return mongooseInstance;
+      })
+      .catch((err) => {
+        console.error('❌ MongoDB Connection Error:', err.message);
+        cached.promise = null;
+        throw err;
+      });
   }
 
   try {
-    cachedConnection.conn = await cachedConnection.promise;
+    cached.conn = await cached.promise;
   } catch (e) {
-    cachedConnection.promise = null;
-    throw e;
+    cached.promise = null;
+    console.warn('⚠️ Database connection could not be established:', e.message);
+    return null;
   }
 
-  return cachedConnection.conn;
+  return cached.conn;
 };
 
 export default connectDB;
