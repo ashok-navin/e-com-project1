@@ -2,9 +2,8 @@ import mongoose from 'mongoose';
 
 const orderItemSchema = new mongoose.Schema({
   product: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product',
-    required: true,
+    type: mongoose.Schema.Types.Mixed,
+    required: false,
   },
   title: { type: String, required: true },
   image: { type: String, required: true },

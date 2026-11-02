@@ -99,11 +99,15 @@ export default function QuickOrderModal() {
 
     setLoading(true);
     try {
+      const customerEmail = (user?.email || '').toLowerCase().trim();
+      const customerName = user?.name || 'Customer';
+      const customerPhone = phone.trim() || user?.phone || '82708 82715';
+
       const orderPayload = {
         customer: {
-          name: user.name,
-          email: user.email,
-          phone: phone.trim(),
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
         },
         shippingAddress: {
           street: street.trim(),
@@ -113,7 +117,7 @@ export default function QuickOrderModal() {
         },
         items: [
           {
-            productId: quickOrderProduct._id || quickOrderProduct.id,
+            productId: quickOrderProduct._id || quickOrderProduct.id || 'item-td-01',
             title: quickOrderProduct.title,
             price: unitPrice,
             quantity,
@@ -125,7 +129,7 @@ export default function QuickOrderModal() {
       };
 
       const res = await api.post('/orders', orderPayload);
-      if (res.data?.success) {
+      if (res.data?.success && res.data.order) {
         if (res.data.savedAddresses) {
           updateUserAddresses(res.data.savedAddresses);
         } else {

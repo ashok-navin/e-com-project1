@@ -125,7 +125,11 @@ export default function Checkout() {
     e.preventDefault();
     setError('');
 
-    if (!fullName || !email || !phone || !street || !city || !state || !pinCode) {
+    const customerEmail = (user?.email || email || '').toLowerCase().trim();
+    const customerName = fullName.trim() || user?.name || 'Customer';
+    const customerPhone = phone.trim() || user?.phone || '';
+
+    if (!customerName || !customerEmail || !customerPhone || !street || !city || !state || !pinCode) {
       setError('Please fill in all required shipping address fields.');
       return;
     }
@@ -134,9 +138,9 @@ export default function Checkout() {
     try {
       const orderPayload = {
         customer: {
-          name: fullName.trim(),
-          email: email.toLowerCase().trim(),
-          phone: phone.trim(),
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
         },
         shippingAddress: {
           street: street.trim(),
