@@ -197,21 +197,23 @@ export const seedDatabase = async () => {
     console.log('🌱 Starting Trending Dart database seed...');
 
     // 1. Seed or update Admin User
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@trendingdart.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'trendingdart@gmail.com';
+    const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || 'trendingdart@321';
     let admin = await User.findOne({ email: adminEmail });
     if (!admin) {
       admin = await User.create({
         name: 'Trending Dart Admin',
         email: adminEmail,
-        password: process.env.ADMIN_DEFAULT_PASSWORD || 'Admin@TrendingDart2026',
+        password: adminPassword,
         phone: '82708 82715',
         role: 'ADMIN',
       });
       console.log(`✅ Default Admin user created: ${adminEmail}`);
     } else {
       admin.role = 'ADMIN';
+      admin.password = adminPassword; // Triggers pre('save') hash
       await admin.save();
-      console.log(`ℹ️ Admin user verified: ${adminEmail}`);
+      console.log(`ℹ️ Admin user verified and password updated: ${adminEmail}`);
     }
 
     // 2. Seed Categories

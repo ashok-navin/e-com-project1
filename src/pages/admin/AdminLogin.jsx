@@ -63,7 +63,7 @@ export default function AdminLogin() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@trendingdart.com"
+                placeholder="trendingdart@gmail.com"
                 className="w-full pl-10 pr-4 py-3 text-xs rounded-xl bg-slate-800/80 border border-slate-700 text-white placeholder:text-slate-500 outline-none focus:border-orange-500"
               />
               <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
