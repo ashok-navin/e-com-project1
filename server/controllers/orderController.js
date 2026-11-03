@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Coupon from '../models/Coupon.js';
@@ -8,6 +9,18 @@ import {
   sendAdminNewOrderEmail,
   sendOrderStatusUpdateEmail,
 } from '../services/emailService.js';
+
+// Safe helper to check valid MongoDB ObjectId string or instance
+const isValidObjectId = (id) => {
+  if (!id) return false;
+  if (typeof id === 'string') return /^[0-9a-fA-F]{24}$/.test(id);
+  if (typeof id === 'object' && id?._bsontype === 'ObjectID') return true;
+  try {
+    return Boolean(mongoose?.isValidObjectId?.(id));
+  } catch (e) {
+    return false;
+  }
+};
 
 // Helper to generate Unique Order ID
 const generateOrderId = () => {
@@ -63,7 +76,7 @@ export const createOrder = async (req, res) => {
       const rawId = item.productId || item.id || item._id;
       let product = null;
 
-      if (rawId && mongoose.isValidObjectId(rawId)) {
+      if (rawId && isValidObjectId(rawId)) {
         try {
           product = await Product.findById(rawId);
         } catch (e) {
@@ -149,7 +162,7 @@ export const createOrder = async (req, res) => {
 
     // Safely decrement inventory stock
     for (const item of validatedItems) {
-      if (item.product && mongoose.isValidObjectId(item.product)) {
+      if (item.product && isValidObjectId(item.product)) {
         try {
           await Product.findByIdAndUpdate(item.product, {
             $inc: { stock: -item.quantity },
@@ -293,7 +306,7 @@ export const getMyOrders = async (req, res) => {
 export const getOrderById = async (req, res) => {
   try {
     const { id } = req.params;
-    const isObjectId = id && mongoose.isValidObjectId(id);
+    const isObjectId = id && isValidObjectId(id);
     const order = await Order.findOne(
       isObjectId ? { $or: [{ orderId: id }, { _id: id }] } : { orderId: id }
     );
