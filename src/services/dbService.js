@@ -82,7 +82,7 @@ export const createOrderInDB = async (orderPayload) => {
     currency: orderPayload.currency || 'USD',
     // Payment Status & Transaction Details
     paymentDetails: {
-      method: orderPayload.paymentMethod, // 'COD' | 'ONLINE_UPI_CARD'
+      method: orderPayload.paymentMethod || 'RAZORPAY', // 'RAZORPAY' | 'ONLINE'
       status: orderPayload.paymentStatus || 'Pending', // 'Pending' | 'Completed' | 'Failed'
       transactionId: orderPayload.transactionId || 'N/A', // Gateway transaction ID
       paidAt: orderPayload.paidAt || null

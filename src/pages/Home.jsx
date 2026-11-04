@@ -118,7 +118,7 @@ export default function Home() {
                 <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
                   <Check size={12} />
                 </div>
-                <span>Cash on Delivery Available</span>
+                <span>Instant Razorpay & UPI Payment</span>
               </div>
             </div>
 
@@ -364,7 +364,7 @@ export default function Home() {
               ))}
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              "Ordered via Cash on Delivery and received it in 3 days. Exactly as shown on their Instagram reels! Will definitely buy more home organizers."
+              "Ordered online with instant UPI and received it in 3 days. Exactly as shown on their Instagram reels! Will definitely buy more home organizers."
             </p>
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="font-bold text-slate-900">Ananya Verma</span>

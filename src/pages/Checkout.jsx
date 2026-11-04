@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useShop } from '../context/ShopContext';
 import api from '../services/api';
 import confetti from 'canvas-confetti';
+import toast from 'react-hot-toast';
+import { initiateRazorpayPayment } from '../services/razorpayService';
 import {
   ShieldCheck,
   Truck,
@@ -41,7 +43,7 @@ export default function Checkout() {
   const [state, setState] = useState('');
   const [pinCode, setPinCode] = useState('');
   const [instructions, setInstructions] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('COD');
+  const [paymentMethod, setPaymentMethod] = useState('RAZORPAY');
   const [hasSavedAddress, setHasSavedAddress] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -135,61 +137,89 @@ export default function Checkout() {
     }
 
     setLoading(true);
-    try {
-      const orderPayload = {
-        customer: {
-          name: customerName,
-          email: customerEmail,
-          phone: customerPhone,
-        },
-        shippingAddress: {
-          street: street.trim(),
-          city: city.trim(),
-          state: state.trim(),
-          pinCode: pinCode.trim(),
-          instructions: instructions.trim(),
-        },
-        items: cart.map((item) => ({
-          productId: item._id || item.id,
-          title: item.title,
-          price: Number(item.price),
-          quantity: item.qty || 1,
-          variant: item.variant || '',
-          image: item.image,
-        })),
-        couponCode: appliedCoupon?.code || '',
-        paymentMethod,
-      };
 
-      const res = await api.post('/orders', orderPayload);
-      if (res.data?.success && res.data.order) {
-        if (res.data.savedAddresses) {
-          updateUserAddresses(res.data.savedAddresses);
-        } else {
-          refreshProfile();
-        }
-        clearCart();
+    await initiateRazorpayPayment({
+      amount: cartTotal,
+      customer: {
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+      },
+      notes: {
+        itemCount: String(cart.length),
+      },
+      onSuccess: async (paymentData) => {
         try {
-          confetti({
-            particleCount: 120,
-            spread: 80,
-            origin: { y: 0.5 },
-          });
-        } catch (e) {}
-        navigate(`/orders/${res.data.order.orderId}`, {
-          state: { isNewOrder: true },
-        });
-      } else {
-        setError(res.data?.message || 'Failed to place order.');
-      }
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          'Server error while processing your order. Please check your network and try again.'
-      );
-    } finally {
-      setLoading(false);
-    }
+          const orderPayload = {
+            customer: {
+              name: customerName,
+              email: customerEmail,
+              phone: customerPhone,
+            },
+            shippingAddress: {
+              street: street.trim(),
+              city: city.trim(),
+              state: state.trim(),
+              pinCode: pinCode.trim(),
+              instructions: instructions.trim(),
+            },
+            items: cart.map((item) => ({
+              productId: item._id || item.id,
+              title: item.title,
+              price: Number(item.price),
+              quantity: item.qty || 1,
+              variant: item.variant || '',
+              image: item.image,
+            })),
+            couponCode: appliedCoupon?.code || '',
+            paymentMethod: 'RAZORPAY',
+            razorpayPaymentId: paymentData.razorpayPaymentId || '',
+            razorpayOrderId: paymentData.razorpayOrderId || '',
+            razorpaySignature: paymentData.razorpaySignature || '',
+          };
+
+          const res = await api.post('/orders', orderPayload);
+          if (res.data?.success && res.data.order) {
+            if (res.data.savedAddresses) {
+              updateUserAddresses(res.data.savedAddresses);
+            } else {
+              refreshProfile();
+            }
+            clearCart();
+            try {
+              confetti({
+                particleCount: 120,
+                spread: 80,
+                origin: { y: 0.5 },
+              });
+            } catch (e) {}
+            toast.success(
+              `🎉 Order #${res.data.order.orderId} placed successfully! Confirmation sent to ${res.data.order.customer?.email}`,
+              { duration: 6000 }
+            );
+            navigate(`/orders/${res.data.order.orderId}`, {
+              state: { isNewOrder: true },
+            });
+          } else {
+            setError(res.data?.message || 'Failed to place order.');
+            setLoading(false);
+          }
+        } catch (err) {
+          setError(
+            err.response?.data?.message ||
+              'Server error while processing your order. Please check your network and try again.'
+          );
+          setLoading(false);
+        }
+      },
+      onError: (errMsg) => {
+        setLoading(false);
+        setError(errMsg || 'Razorpay payment could not be completed.');
+      },
+      onDismiss: () => {
+        setLoading(false);
+      },
+    });
   };
 
   return (
@@ -349,53 +379,29 @@ export default function Checkout() {
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
             <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
               <CreditCard size={18} className="text-orange-500" />
-              <span>Payment Option</span>
+              <span>Payment Method</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('COD')}
-                className={`p-4 rounded-2xl border text-left flex items-start gap-3 transition-all ${
-                  paymentMethod === 'COD'
-                    ? 'border-orange-500 bg-orange-50/40 ring-2 ring-orange-500/20'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
-                  paymentMethod === 'COD' ? 'border-orange-500' : 'border-slate-400'
-                }`}>
-                  {paymentMethod === 'COD' && <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div>}
+            <div className="p-4 sm:p-5 rounded-2xl border-2 border-orange-500 bg-orange-50/40 ring-2 ring-orange-500/10 text-left flex items-start justify-between shadow-sm">
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-orange-600 flex items-center justify-center font-black mt-0.5 shrink-0">
+                  <CreditCard size={22} />
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-xs text-slate-900">Cash on Delivery (COD)</h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                    Pay securely in cash or UPI when your order is delivered to your doorstep.
+                  <h4 className="font-extrabold text-sm text-slate-900 flex flex-wrap items-center gap-2">
+                    Razorpay Secure Payment
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wide">
+                      Instant & Verified
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Pay securely using Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards, or Netbanking powered by Razorpay.
                   </p>
                 </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('ONLINE')}
-                className={`p-4 rounded-2xl border text-left flex items-start gap-3 transition-all ${
-                  paymentMethod === 'ONLINE'
-                    ? 'border-orange-500 bg-orange-50/40 ring-2 ring-orange-500/20'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
-                  paymentMethod === 'ONLINE' ? 'border-orange-500' : 'border-slate-400'
-                }`}>
-                  {paymentMethod === 'ONLINE' && <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div>}
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-xs text-slate-900">Online UPI / Cards</h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                    Pay instantly via Google Pay, PhonePe, Paytm, or Debit/Credit Cards.
-                  </p>
-                </div>
-              </button>
+              </div>
+              <div className="w-5 h-5 rounded-full border-2 border-orange-500 flex items-center justify-center shrink-0 mt-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div>
+              </div>
             </div>
           </div>
 
@@ -479,7 +485,7 @@ export default function Checkout() {
               ) : (
                 <>
                   <Zap size={18} />
-                  <span>Place Order ({formatPrice(cartTotal)})</span>
+                  <span>Pay {formatPrice(cartTotal)} with Razorpay</span>
                 </>
               )}
             </button>

@@ -3,17 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useShop } from '../../context/ShopContext';
 import api from '../../services/api';
+import { initiateRazorpayPayment } from '../../services/razorpayService';
 import confetti from 'canvas-confetti';
+import toast from 'react-hot-toast';
 import {
   X,
   Zap,
   Lock,
   UserCheck,
-  Truck,
   CheckCircle2,
   AlertCircle,
   ArrowRight,
   ShieldCheck,
+  CreditCard,
 } from 'lucide-react';
 
 export default function QuickOrderModal() {
@@ -34,17 +36,16 @@ export default function QuickOrderModal() {
   const [state, setState] = useState('');
   const [pinCode, setPinCode] = useState('');
   const [phone, setPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('COD');
+  const [paymentMethod, setPaymentMethod] = useState('RAZORPAY');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successOrder, setSuccessOrder] = useState(null);
 
   // Pre-fill user data when opened
   useEffect(() => {
     if (quickOrderProduct) {
       setQuantity(1);
       setError('');
-      setSuccessOrder(null);
+      setPaymentMethod('RAZORPAY');
       if (quickOrderProduct.variants?.[0]?.options?.[0]) {
         setSelectedVariant(quickOrderProduct.variants[0].options[0]);
       } else {
@@ -68,8 +69,8 @@ export default function QuickOrderModal() {
 
   const closeModal = () => {
     setQuickOrderProduct(null);
-    setSuccessOrder(null);
     setError('');
+    setLoading(false);
   };
 
   const handleGoToLogin = () => {
@@ -98,61 +99,98 @@ export default function QuickOrderModal() {
     }
 
     setLoading(true);
-    try {
-      const customerEmail = (user?.email || '').toLowerCase().trim();
-      const customerName = user?.name || 'Customer';
-      const customerPhone = phone.trim() || user?.phone || '82708 82715';
 
-      const orderPayload = {
-        customer: {
-          name: customerName,
-          email: customerEmail,
-          phone: customerPhone,
-        },
-        shippingAddress: {
-          street: street.trim(),
-          city: city.trim(),
-          state: state.trim(),
-          pinCode: pinCode.trim(),
-        },
-        items: [
-          {
-            productId: quickOrderProduct._id || quickOrderProduct.id || 'item-td-01',
-            title: quickOrderProduct.title,
-            price: unitPrice,
-            quantity,
-            variant: selectedVariant,
-            image: quickOrderProduct.image,
-          },
-        ],
-        paymentMethod,
-      };
+    const customerEmail = (user?.email || '').toLowerCase().trim();
+    const customerName = user?.name || 'Customer';
+    const customerPhone = phone.trim() || user?.phone || '82708 82715';
 
-      const res = await api.post('/orders', orderPayload);
-      if (res.data?.success && res.data.order) {
-        if (res.data.savedAddresses) {
-          updateUserAddresses(res.data.savedAddresses);
-        } else {
-          refreshProfile();
-        }
-        setSuccessOrder(res.data.order);
+    // Initiate Razorpay Payment Flow
+    await initiateRazorpayPayment({
+      amount: totalAmount,
+      customer: {
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+      },
+      notes: {
+        productId: quickOrderProduct._id || quickOrderProduct.id || '',
+        productTitle: quickOrderProduct.title || '',
+        quantity: String(quantity),
+      },
+      onSuccess: async (paymentData) => {
         try {
-          confetti({
-            particleCount: 100,
-            spread: 70,
-            origin: { y: 0.6 },
-          });
-        } catch (e) {
-          // ignore confetti if blocked
+          const orderPayload = {
+            customer: {
+              name: customerName,
+              email: customerEmail,
+              phone: customerPhone,
+            },
+            shippingAddress: {
+              street: street.trim(),
+              city: city.trim(),
+              state: state.trim(),
+              pinCode: pinCode.trim(),
+            },
+            items: [
+              {
+                productId: quickOrderProduct._id || quickOrderProduct.id || 'item-td-01',
+                title: quickOrderProduct.title,
+                price: unitPrice,
+                quantity,
+                variant: selectedVariant,
+                image: quickOrderProduct.image,
+              },
+            ],
+            paymentMethod: 'RAZORPAY',
+            razorpayPaymentId: paymentData.razorpayPaymentId || '',
+            razorpayOrderId: paymentData.razorpayOrderId || '',
+            razorpaySignature: paymentData.razorpaySignature || '',
+          };
+
+          const res = await api.post('/orders', orderPayload);
+          if (res.data?.success && res.data.order) {
+            if (res.data.savedAddresses) {
+              updateUserAddresses(res.data.savedAddresses);
+            } else {
+              refreshProfile();
+            }
+
+            const createdOrder = res.data.order;
+
+            // CLOSE MODAL IMMEDIATELY -> User is back to normal page!
+            closeModal();
+
+            // Confetti explosion on normal page
+            try {
+              confetti({
+                particleCount: 120,
+                spread: 80,
+                origin: { y: 0.5 },
+              });
+            } catch (err) {}
+
+            // Prominent Success Toast Notification
+            toast.success(
+              `🎉 Order #${createdOrder.orderId} placed successfully! Confirmation email sent to ${createdOrder.customer?.email}`,
+              { duration: 6000 }
+            );
+          } else {
+            setError(res.data?.message || 'Failed to place order.');
+            setLoading(false);
+          }
+        } catch (postErr) {
+          setError(postErr.response?.data?.message || 'Error processing your order.');
+          setLoading(false);
         }
-      } else {
-        setError(res.data?.message || 'Failed to place order.');
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Error processing your order.');
-    } finally {
-      setLoading(false);
-    }
+      },
+      onError: (errMsg) => {
+        setLoading(false);
+        setError(errMsg || 'Razorpay payment could not be completed.');
+      },
+      onDismiss: () => {
+        setLoading(false);
+      },
+    });
   };
 
   return (
@@ -169,11 +207,12 @@ export default function QuickOrderModal() {
               <h3 className="font-extrabold text-base tracking-wide flex items-center gap-1.5">
                 Instant Order <span className="text-orange-400">Checkout</span>
               </h3>
-              <p className="text-[11px] text-slate-400">Direct order without adding to cart</p>
+              <p className="text-[11px] text-slate-400">Direct Razorpay checkout</p>
             </div>
           </div>
           <button
             onClick={closeModal}
+            aria-label="Close"
             className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <X size={20} />
@@ -182,43 +221,8 @@ export default function QuickOrderModal() {
 
         {/* Modal Body */}
         <div className="p-6 max-h-[80vh] overflow-y-auto">
-          
-          {/* Case 1: Order Completed Success Screen */}
-          {successOrder ? (
-            <div className="text-center py-6 space-y-4">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                <CheckCircle2 size={36} />
-              </div>
-              <h4 className="text-2xl font-black text-slate-900">Order Confirmed!</h4>
-              <p className="text-sm text-slate-600 max-w-xs mx-auto">
-                Thank you! Your order <strong>#{successOrder.orderId}</strong> has been placed successfully. A confirmation email has been dispatched to <strong>{successOrder.customer?.email}</strong>.
-              </p>
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-left space-y-1">
-                <div><strong>Amount:</strong> {formatPrice(successOrder.totalAmount)} ({successOrder.paymentMethod})</div>
-                <div><strong>Delivery to:</strong> {successOrder.shippingAddress?.city}, {successOrder.shippingAddress?.state} - {successOrder.shippingAddress?.pinCode}</div>
-                <div><strong>Estimated Time:</strong> 3-5 Business Days</div>
-              </div>
-              <div className="pt-2 flex flex-col gap-2">
-                <button
-                  onClick={() => {
-                    closeModal();
-                    navigate(`/orders/${successOrder.orderId}`);
-                  }}
-                  className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition-colors shadow-lg shadow-orange-500/25"
-                >
-                  Track Live Order Status
-                </button>
-                <button
-                  onClick={closeModal}
-                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition-colors"
-                >
-                  Continue Shopping
-                </button>
-              </div>
-            </div>
-          ) : !isAuthenticated ? (
-            
-            /* Case 2: Not Logged In Requirement Prompt */
+          {!isAuthenticated ? (
+            /* Not Logged In Requirement Prompt */
             <div className="text-center py-6 space-y-5">
               <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
                 <Lock size={32} />
@@ -229,7 +233,7 @@ export default function QuickOrderModal() {
                   Login Required to Place Order
                 </h4>
                 <p className="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed max-w-sm mx-auto">
-                  For secure order processing, delivery tracking, and automated email/SMS updates, Trending Dart requires customers to log in before completing direct orders.
+                  For secure order processing, delivery tracking, and automated email updates, Trending Dart requires customers to log in before completing direct orders.
                 </p>
               </div>
 
@@ -279,13 +283,12 @@ export default function QuickOrderModal() {
                   <ShieldCheck size={14} className="text-emerald-500" /> 100% Genuine
                 </span>
                 <span className="flex items-center gap-1">
-                  <Truck size={14} className="text-blue-500" /> Cash on Delivery Available
+                  <CreditCard size={14} className="text-orange-500" /> 100% Secure Razorpay & UPI
                 </span>
               </div>
             </div>
           ) : (
-            
-            /* Case 3: Logged In Customer - Direct Quick Checkout Form */
+            /* Logged In Customer - Direct Quick Checkout Form */
             <form onSubmit={handlePlaceOrder} className="space-y-5">
               
               {/* Product Details Bar */}
@@ -320,12 +323,10 @@ export default function QuickOrderModal() {
                   >
                     -
                   </button>
-                  <span className="px-2 font-bold text-xs">{quantity}</span>
+                  <span className="px-3 text-xs font-black text-slate-900">{quantity}</span>
                   <button
                     type="button"
-                    onClick={() =>
-                      setQuantity((q) => Math.min(quickOrderProduct.stock || 50, q + 1))
-                    }
+                    onClick={() => setQuantity((q) => Math.min(quickOrderProduct.stock || 50, q + 1))}
                     className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold"
                   >
                     +
@@ -333,8 +334,8 @@ export default function QuickOrderModal() {
                 </div>
               </div>
 
-              {/* Variant selection if available */}
-              {quickOrderProduct.variants?.[0]?.options && (
+              {/* Variant Selector (if applicable) */}
+              {quickOrderProduct.variants?.[0]?.options?.length > 1 && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Select {quickOrderProduct.variants[0].name || 'Option'}:
@@ -345,10 +346,10 @@ export default function QuickOrderModal() {
                         key={opt}
                         type="button"
                         onClick={() => setSelectedVariant(opt)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                           selectedVariant === opt
-                            ? 'border-orange-500 bg-orange-50 text-orange-600 shadow-sm'
-                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                            ? 'border-orange-500 bg-orange-50 text-orange-600'
+                            : 'border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
                         {opt}
@@ -358,55 +359,56 @@ export default function QuickOrderModal() {
                 </div>
               )}
 
-              {/* Customer Delivery Details */}
+              {/* Delivery Address Fields */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
                     Delivery Address
-                  </span>
-                  <span className="text-[11px] text-slate-500">Ordering as: {user.name}</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400">Ordering as: {user?.name}</span>
                 </div>
 
-                {user.addresses && user.addresses.length > 0 && (
-                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-[11px] text-emerald-800 font-medium">
-                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                {user?.addresses?.length > 0 && (
+                  <div className="p-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-xl text-[11px] flex items-center gap-2">
+                    <CheckCircle2 size={14} className="shrink-0 text-emerald-600" />
                     <span>Saved delivery address loaded. You can edit any field below.</span>
                   </div>
                 )}
 
-                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-[11px] text-slate-600">
+                {/* Registered Email confirmation notification */}
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 flex items-center justify-between">
                   <span>Confirmation will be sent to:</span>
-                  <span className="font-bold text-slate-900">{user.email}</span>
+                  <span className="font-bold text-slate-900">{user?.email}</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="col-span-2">
-                    <input
-                      type="tel"
-                      required
-                      placeholder="Contact Mobile Number (e.g. 82708 82715)"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
-                    />
-                  </div>
+                <div>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="Mobile Contact Phone Number *"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
+                  />
+                </div>
 
-                  <div className="col-span-2">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Street Address, Flat / House No."
-                      value={street}
-                      onChange={(e) => setStreet(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
-                    />
-                  </div>
+                <div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="House / Flat / Building / Street Address *"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
+                  />
+                </div>
 
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <input
                       type="text"
                       required
-                      placeholder="City"
+                      placeholder="City / Town *"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
@@ -417,7 +419,7 @@ export default function QuickOrderModal() {
                     <input
                       type="text"
                       required
-                      placeholder="State"
+                      placeholder="State *"
                       value={state}
                       onChange={(e) => setState(e.target.value)}
                       className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
@@ -428,7 +430,7 @@ export default function QuickOrderModal() {
                     <input
                       type="text"
                       required
-                      placeholder="Postal PIN Code"
+                      placeholder="Postal PIN Code *"
                       value={pinCode}
                       onChange={(e) => setPinCode(e.target.value)}
                       className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
@@ -437,51 +439,31 @@ export default function QuickOrderModal() {
                 </div>
               </div>
 
-              {/* Payment Method Selector */}
+              {/* Payment Method Selector - 100% Razorpay Online Payments */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Payment Method:
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('COD')}
-                    className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all ${
-                      paymentMethod === 'COD'
-                        ? 'border-orange-500 bg-orange-50/50 shadow-sm'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      paymentMethod === 'COD' ? 'border-orange-500' : 'border-slate-400'
-                    }`}>
-                      {paymentMethod === 'COD' && <div className="w-2 h-2 rounded-full bg-orange-500"></div>}
+                <div className="p-3.5 rounded-2xl border border-orange-500 bg-orange-50/40 text-left flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-600 flex items-center justify-center font-black">
+                      <CreditCard size={18} />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-slate-900">Cash on Delivery</div>
-                      <div className="text-[10px] text-slate-500">Pay when delivered</div>
+                      <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        Razorpay Secure Payment
+                        <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px] font-extrabold uppercase">
+                          Instant UPI & Cards
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        Google Pay, PhonePe, Paytm, Debit/Credit Card, Netbanking
+                      </div>
                     </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('ONLINE')}
-                    className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all ${
-                      paymentMethod === 'ONLINE'
-                        ? 'border-orange-500 bg-orange-50/50 shadow-sm'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      paymentMethod === 'ONLINE' ? 'border-orange-500' : 'border-slate-400'
-                    }`}>
-                      {paymentMethod === 'ONLINE' && <div className="w-2 h-2 rounded-full bg-orange-500"></div>}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900">Online / UPI</div>
-                      <div className="text-[10px] text-slate-500">Instant digital payment</div>
-                    </div>
-                  </button>
+                  </div>
+                  <div className="w-5 h-5 rounded-full border-2 border-orange-500 flex items-center justify-center shrink-0">
+                    <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div>
+                  </div>
                 </div>
               </div>
 
@@ -512,14 +494,14 @@ export default function QuickOrderModal() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-extrabold rounded-xl text-sm transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 text-white font-extrabold rounded-xl text-sm transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <span className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                 ) : (
                   <>
                     <Zap size={18} />
-                    <span>Confirm & Place Order Now</span>
+                    <span>Pay {formatPrice(totalAmount)} & Place Order</span>
                   </>
                 )}
               </button>
@@ -530,4 +512,3 @@ export default function QuickOrderModal() {
     </div>
   );
 }
-

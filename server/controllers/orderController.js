@@ -36,8 +36,11 @@ export const createOrder = async (req, res) => {
       customer,
       shippingAddress,
       items,
-      paymentMethod = 'COD',
+      paymentMethod = 'RAZORPAY',
       couponCode,
+      razorpayOrderId = '',
+      razorpayPaymentId = '',
+      razorpaySignature = '',
     } = req.body;
 
     // Validation
@@ -200,8 +203,13 @@ export const createOrder = async (req, res) => {
       couponCode: couponCode ? couponCode.trim().toUpperCase() : '',
       deliveryCharge,
       totalAmount: finalAmount,
-      paymentMethod,
-      paymentStatus: paymentMethod === 'COD' ? 'PENDING' : 'PAID',
+      paymentMethod: paymentMethod === 'COD' ? 'RAZORPAY' : (paymentMethod || 'RAZORPAY'),
+      paymentStatus: 'PAID',
+      paymentDetails: {
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+      },
       orderStatus: initialStatus,
       statusTimeline: [
         {

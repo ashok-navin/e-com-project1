@@ -35,7 +35,7 @@ export default function Footer() {
             </div>
             <div>
               <h4 className="font-extrabold text-white text-sm">Free Express Delivery</h4>
-              <p className="text-xs text-slate-400 mt-0.5">On all prepaid & COD orders above ₹499</p>
+              <p className="text-xs text-slate-400 mt-0.5">On all orders above ₹499</p>
             </div>
           </div>
 
@@ -210,7 +210,7 @@ export default function Footer() {
             Admin Portal
           </Link>
           <span>·</span>
-          <span>Cash on Delivery & Secure Online UPI</span>
+          <span>100% Secure Payments via Razorpay & UPI</span>
         </div>
       </div>
     </footer>

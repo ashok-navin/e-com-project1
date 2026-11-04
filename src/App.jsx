@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import SplashIntro from './components/common/SplashIntro';
@@ -40,6 +41,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 antialiased selection:bg-orange-500 selection:text-white w-full max-w-full overflow-x-hidden">
+      <Toaster position="top-center" toastOptions={{ duration: 5000 }} />
       {/* 2-Second Logo Opening Animation */}
       {showSplash && <SplashIntro onFinish={handleSplashFinish} />}
 

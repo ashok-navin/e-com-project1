@@ -324,7 +324,7 @@ export default function ProductDetails() {
           <div className="pt-4 border-t border-slate-200 grid grid-cols-3 gap-2 text-center text-[11px] font-semibold text-slate-600">
             <div className="p-3 bg-slate-50 rounded-xl">
               <Truck size={18} className="mx-auto text-orange-500 mb-1" />
-              <span>Cash on Delivery</span>
+              <span>Secure Razorpay</span>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl">
               <ShieldCheck size={18} className="mx-auto text-orange-500 mb-1" />

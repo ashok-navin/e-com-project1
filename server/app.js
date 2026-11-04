@@ -13,6 +13,7 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 import path from 'path';
 
 dotenv.config();
@@ -65,6 +66,7 @@ apiRouter.use('/reviews', reviewRoutes);
 apiRouter.use('/settings', settingsRoutes);
 apiRouter.use('/admin', adminRoutes);
 apiRouter.use('/upload', uploadRoutes);
+apiRouter.use('/payment', paymentRoutes);
 
 app.use('/api', apiRouter);
 app.use('/', apiRouter);
