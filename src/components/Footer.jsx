@@ -206,10 +206,6 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
         <p>© {new Date().getFullYear()} Trending Dart. All rights reserved.</p>
         <div className="flex items-center gap-6">
-          <Link to="/admin" className="hover:text-slate-300 transition-colors">
-            Admin Portal
-          </Link>
-          <span>·</span>
           <span>100% Secure Payments via Razorpay & UPI</span>
         </div>
       </div>
