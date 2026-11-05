@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useShop } from '../../context/ShopContext';
 import api from '../../services/api';
@@ -275,6 +275,25 @@ export default function QuickOrderModal() {
                   >
                     Register in 30 seconds
                   </button>
+                </p>
+
+                <p className="text-[10px] text-center text-slate-400">
+                  By logging in, you agree to our{' '}
+                  <Link
+                    to="/terms"
+                    onClick={closeModal}
+                    className="text-orange-600 font-semibold hover:underline"
+                  >
+                    Terms
+                  </Link>{' '}
+                  &{' '}
+                  <Link
+                    to="/privacy"
+                    onClick={closeModal}
+                    className="text-orange-600 font-semibold hover:underline"
+                  >
+                    Privacy Policy
+                  </Link>.
                 </p>
               </div>
 

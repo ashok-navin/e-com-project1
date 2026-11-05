@@ -18,6 +18,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import Profile from './pages/Profile';
 import OrderDetails from './pages/OrderDetails';
 import OrderTracking from './pages/OrderTracking';
+import TermsConditions from './pages/TermsConditions';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 // Admin Pages
 import AdminLogin from './pages/admin/AdminLogin';
@@ -65,6 +67,8 @@ export default function App() {
           <Route path="/orders/:id" element={<OrderDetails />} />
           <Route path="/track" element={<OrderTracking />} />
           <Route path="/track/:orderId" element={<OrderTracking />} />
+          <Route path="/terms" element={<TermsConditions />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
 
           {/* Admin Management Routes */}
           <Route path="/admin" element={<AdminLogin />} />

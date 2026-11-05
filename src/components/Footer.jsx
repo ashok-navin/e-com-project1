@@ -2,16 +2,16 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
 import {
-  Phone,
-  Mail,
-  MapPin,
   ShieldCheck,
   Truck,
   RotateCcw,
-  Sparkles,
-  Heart,
+  Phone,
+  Mail,
+  MapPin,
+  Instagram,
+  FileText,
+  Lock,
 } from 'lucide-react';
-import Instagram from './common/InstagramIcon';
 
 export default function Footer() {
   const { settings } = useShop();
@@ -128,6 +128,16 @@ export default function Footer() {
                   My Wishlist
                 </Link>
               </li>
+              <li>
+                <Link to="/terms" className="hover:text-orange-400 transition-colors">
+                  Terms & Conditions
+                </Link>
+              </li>
+              <li>
+                <Link to="/privacy" className="hover:text-orange-400 transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -202,11 +212,32 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Bottom Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+      {/* Bottom Bar with Terms & Privacy Buttons */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 border-t border-slate-900 flex flex-col md:flex-row items-center justify-between text-xs text-slate-500 gap-4">
         <p>© {new Date().getFullYear()} Trending Dart. All rights reserved.</p>
-        <div className="flex items-center gap-6">
-          <span>100% Secure Payments via Razorpay & UPI</span>
+        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+          <Link
+            to="/terms"
+            className="hover:text-slate-300 transition-colors font-medium hover:underline"
+          >
+            Terms & Conditions
+          </Link>
+          <span>·</span>
+          <Link
+            to="/privacy"
+            className="hover:text-slate-300 transition-colors font-medium hover:underline"
+          >
+            Privacy Policy
+          </Link>
+          <span>·</span>
+          <Link
+            to="/admin"
+            className="hover:text-slate-300 transition-colors"
+          >
+            Admin
+          </Link>
+          <span>·</span>
+          <span className="text-slate-400">100% Secure Razorpay & UPI</span>
         </div>
       </div>
     </footer>

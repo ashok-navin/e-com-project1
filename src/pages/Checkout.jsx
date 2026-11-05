@@ -119,6 +119,17 @@ export default function Checkout() {
             Create New Account
           </button>
         </div>
+
+        <p className="text-[11px] text-slate-400 pt-2">
+          By continuing, you agree to Trending Dart's{' '}
+          <Link to="/terms" target="_blank" className="text-orange-600 font-semibold hover:underline">
+            Terms & Conditions
+          </Link>{' '}
+          and{' '}
+          <Link to="/privacy" target="_blank" className="text-orange-600 font-semibold hover:underline">
+            Privacy Policy
+          </Link>.
+        </p>
       </div>
     );
   }

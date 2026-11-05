@@ -116,6 +116,18 @@ export default function Login() {
               </>
             )}
           </button>
+
+          {/* Terms and Privacy Policy Notice */}
+          <p className="text-[11px] text-center text-slate-500 leading-relaxed px-2">
+            By signing in, you agree to Trending Dart's{' '}
+            <Link to="/terms" target="_blank" className="text-orange-600 font-bold hover:underline">
+              Terms & Conditions
+            </Link>{' '}
+            and{' '}
+            <Link to="/privacy" target="_blank" className="text-orange-600 font-bold hover:underline">
+              Privacy Policy
+            </Link>.
+          </p>
         </form>
 
         <div className="text-center pt-2 text-xs text-slate-500 border-t border-slate-100">
