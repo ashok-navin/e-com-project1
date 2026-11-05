@@ -57,7 +57,7 @@ export default function TermsConditions() {
               Acceptance of Terms
             </h2>
             <p>
-              By accessing, browsing, or shopping on <strong>Trending Dart</strong> (accessible at <span className="text-orange-600 font-semibold">trending-dart.vercel.app</span> and affiliated domains), you acknowledge that you have read, understood, and agreed to be bound by these Terms and Conditions, along with our Privacy Policy. If you do not agree to these terms, please refrain from using our services.
+              By accessing, browsing, or shopping on <strong>Trending Dart</strong> (accessible at <span className="text-orange-600 font-semibold">trendingdart.shop</span> and affiliated domains), you acknowledge that you have read, understood, and agreed to be bound by these Terms and Conditions, along with our Privacy Policy. If you do not agree to these terms, please refrain from using our services.
             </p>
           </section>
 
