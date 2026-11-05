@@ -8,10 +8,8 @@ import {
   Phone,
   Mail,
   MapPin,
-  Instagram,
-  FileText,
-  Lock,
 } from 'lucide-react';
+import Instagram from './common/InstagramIcon';
 
 export default function Footer() {
   const { settings } = useShop();
@@ -228,13 +226,6 @@ export default function Footer() {
             className="hover:text-slate-300 transition-colors font-medium hover:underline"
           >
             Privacy Policy
-          </Link>
-          <span>·</span>
-          <Link
-            to="/admin"
-            className="hover:text-slate-300 transition-colors"
-          >
-            Admin
           </Link>
           <span>·</span>
           <span className="text-slate-400">100% Secure Razorpay & UPI</span>
